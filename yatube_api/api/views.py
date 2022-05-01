@@ -7,13 +7,6 @@ from .serializers import (CommentSerializer, FollowSerializer, GroupSerializer,
                           PostSerializer)
 
 
-class CreateRetrieveViewSet(mixins.CreateModelMixin,
-                            mixins.RetrieveModelMixin,
-                            mixins.ListModelMixin,
-                            viewsets.GenericViewSet):
-    pass
-
-
 class PostViewSet(viewsets.ModelViewSet):
     permission_classes = [IsOwnerOrReadOnly, ]
     queryset = Post.objects.all()
@@ -24,7 +17,10 @@ class PostViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user)
 
 
-class FollowViewSet(CreateRetrieveViewSet):
+class FollowViewSet(mixins.CreateModelMixin,
+                    mixins.RetrieveModelMixin,
+                    mixins.ListModelMixin,
+                    viewsets.GenericViewSet):
     serializer_class = FollowSerializer
     filter_backends = (filters.SearchFilter,)
     search_fields = ('following__username',)
