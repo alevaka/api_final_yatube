@@ -1,17 +1,17 @@
-from django.db import IntegrityError
 from posts.models import Comment, Follow, Group, Post
-from rest_framework import filters, permissions, serializers, viewsets
+from rest_framework import filters, mixins, permissions, viewsets
 from rest_framework.pagination import LimitOffsetPagination
 
+from .permissions import IsOwnerOrReadOnly
 from .serializers import (CommentSerializer, FollowSerializer, GroupSerializer,
                           PostSerializer)
 
 
-class IsOwnerOrReadOnly(permissions.BasePermission):
-    def has_object_permission(self, request, view, obj):
-        if request.method in permissions.SAFE_METHODS:
-            return True
-        return obj.author == request.user
+class CreateRetrieveViewSet(mixins.CreateModelMixin,
+                            mixins.RetrieveModelMixin,
+                            mixins.ListModelMixin,
+                            viewsets.GenericViewSet):
+    pass
 
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -24,22 +24,16 @@ class PostViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user)
 
 
-class FollowViewSet(viewsets.ModelViewSet):
-    queryset = Follow.objects.all()
+class FollowViewSet(CreateRetrieveViewSet):
     serializer_class = FollowSerializer
     filter_backends = (filters.SearchFilter,)
     search_fields = ('following__username',)
 
     def get_queryset(self):
-        queryset = Follow.objects.filter(user=self.request.user)
-        return queryset
+        return Follow.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        try:
-            serializer.save(user=self.request.user)
-        except IntegrityError:
-            raise serializers.ValidationError(
-                'Нельзя подписаться дважды!')
+        serializer.save(user=self.request.user)
 
 
 class GroupViewSet(viewsets.ReadOnlyModelViewSet):
@@ -50,13 +44,10 @@ class GroupViewSet(viewsets.ReadOnlyModelViewSet):
 
 class CommentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsOwnerOrReadOnly, ]
-
-    queryset = Comment.objects.all()
     serializer_class = CommentSerializer
 
     def get_queryset(self):
-        queryset = Comment.objects.filter(post_id=self.kwargs['post_id'])
-        return queryset
+        return Comment.objects.filter(post_id=self.kwargs['post_id'])
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user,

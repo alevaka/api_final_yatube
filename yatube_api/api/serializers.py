@@ -39,6 +39,11 @@ class FollowSerializer(serializers.ModelSerializer):
         model = Follow
 
     def validate(self, data):
+        if self.context['request'].user.following.filter(
+            following=data['following']
+        ):
+            raise serializers.ValidationError(
+                'Нельзя подписаться дважды!')
         if self.context['request'].user == data['following']:
             raise serializers.ValidationError(
                 'Нельзя подписаться на самого себя!')
